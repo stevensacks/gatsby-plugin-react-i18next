@@ -2,7 +2,15 @@ import React from 'react';
 import {withPrefix, WrapPageElementBrowserArgs} from 'gatsby';
 // @ts-ignore
 import browserLang from 'browser-lang';
-import {I18NextContext, LANGUAGE_KEY, PageContext, PluginOptions, LocaleNode} from '../types';
+import {
+  I18NextContext,
+  LANGUAGE_KEY,
+  PageContext,
+  PluginOptions,
+  LocaleNode,
+  Resource,
+  ResourceKey
+} from '../types';
 import i18next, {i18n as I18n} from 'i18next';
 import {I18nextProvider} from 'react-i18next';
 import {I18nextContext} from '../i18nextContext';
@@ -16,13 +24,19 @@ const withI18next = (i18n: I18n, context: I18NextContext) => (children: any) => 
   );
 };
 
-const removePathPrefix = (pathname: string) => {
+const removePathPrefix = (pathname: string, stripTrailingSlash: boolean) => {
   const pathPrefix = withPrefix('/');
+  let result = pathname;
+
   if (pathname.startsWith(pathPrefix)) {
-    return pathname.replace(pathPrefix, '/');
+    result = pathname.replace(pathPrefix, '/');
   }
 
-  return pathname;
+  if (stripTrailingSlash && result.endsWith('/')) {
+    return result.slice(0, -1);
+  }
+
+  return result;
 };
 
 export const wrapPageElement = (
@@ -32,7 +46,9 @@ export const wrapPageElement = (
     redirect = true,
     generateDefaultLanguagePage = false,
     siteUrl,
-    localeJsonNodeName = 'locales'
+    localeJsonNodeName = 'locales',
+    fallbackLanguage,
+    trailingSlash
   }: PluginOptions
 ) => {
   if (!props) return;
@@ -49,7 +65,7 @@ export const wrapPageElement = (
         window.localStorage.getItem(LANGUAGE_KEY) ||
         browserLang({
           languages,
-          fallback: language
+          fallback: fallbackLanguage || language
         });
 
       if (!languages.includes(detected)) {
@@ -60,10 +76,14 @@ export const wrapPageElement = (
 
       if (detected !== defaultLanguage) {
         const queryParams = search || '';
+        const stripTrailingSlash = trailingSlash === 'never';
         const newUrl = withPrefix(
-          `/${detected}${removePathPrefix(location.pathname)}${queryParams}${location.hash}`
+          `/${detected}${removePathPrefix(location.pathname, stripTrailingSlash)}${queryParams}${
+            location.hash
+          }`
         );
-        window.location.replace(newUrl);
+        // @ts-ignore
+        window.___replace(newUrl);
         return null;
       }
     }
@@ -103,10 +123,21 @@ export const wrapPageElement = (
   defaultNS = namespaces.find((ns) => ns !== defaultNS) || defaultNS;
   const fallbackNS = namespaces.filter((ns) => ns !== defaultNS);
 
+  const resources: Resource = localeNodes.reduce<Resource>((res: Resource, {node}) => {
+    const parsedData: ResourceKey = JSON.parse(node.data);
+
+    if (!(node.language in res)) res[node.language] = {};
+
+    res[node.language][node.ns] = parsedData;
+
+    return res;
+  }, {});
+
   const i18n = i18next.createInstance();
 
   i18n.init({
     ...i18nextOptions,
+    resources,
     lng: language,
     fallbackLng: defaultLanguage,
     defaultNS,
@@ -114,11 +145,6 @@ export const wrapPageElement = (
     react: {
       useSuspense: false
     }
-  });
-
-  localeNodes.forEach(({node}) => {
-    const parsedData = JSON.parse(node.data);
-    i18n.addResourceBundle(node.language, node.ns, parsedData);
   });
 
   if (i18n.language !== language) {
