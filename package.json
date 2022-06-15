@@ -4,7 +4,10 @@
   "description": "Easily translate your Gatsby website into multiple languages",
   "main": "index.js",
   "types": "index.d.ts",
-  "author": "Dmitriy Nevzorov <dmitriy.nevzorov@microapps.com>",
+  "authors": [
+    "Dmitriy Nevzorov <dmitriy.nevzorov@microapps.com>",
+    "Steven Sacks <stevensacks@gmail.com>"
+  ],
   "license": "MIT",
   "keywords": [
     "react",
@@ -23,7 +26,7 @@
     "translate"
   ],
   "repository": {
-    "url": "https://github.com/microapps/gatsby-plugin-react-i18next"
+    "url": "https://github.com/stevensacks/gatsby-plugin-react-i18next"
   },
   "files": [
     "dist",
